@@ -3,14 +3,54 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center"
-    android:padding="16dp">
+    android:padding="24dp"
+    android:background="#0D0D0D">
 
+    <!-- App Title -->
     <TextView
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Native DRM Downloader"
-        android:textSize="20sp"
-        android:textStyle="bold" />
+        android:text="DRM Downloader"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        android:textColor="#FF0055"
+        android:gravity="center"
+        android:layout_marginTop="30dp"
+        android:layout_marginBottom="40dp"/>
+
+    <!-- Glassmorphism-style Container Card -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#1E1E1E"
+        android:padding="20dp">
+
+        <!-- URL Input Box -->
+        <EditText
+            android:id="@+id/urlInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Paste video URL, .mpd, or .m3u8 link..."
+            android:textColor="#FFFFFF"
+            android:textColorHint="#888888"
+            android:background="#2C2C2C"
+            android:padding="16dp"
+            android:textSize="14sp"
+            android:layout_marginBottom="20dp"/>
+
+        <!-- Action Button -->
+        <Button
+            android:id="@+id/btnDownload"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Fetch Streams &amp; Download"
+            android:textColor="#000000"
+            android:backgroundTint="#FF0055"
+            android:padding="14dp"
+            android:textSize="16sp"
+            android:textStyle="bold"/>
+
+    </LinearLayout>
 
 </LinearLayout>
