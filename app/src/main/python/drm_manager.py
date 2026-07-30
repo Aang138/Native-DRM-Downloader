@@ -11,13 +11,21 @@ def fetch_with_cloudflare_bypass(url, cookies=None, user_agent=None):
     response = requests.get(url, headers=headers, cookies=cookies, timeout=15)
     return response.text
 
-def request_license(license_url, challenge_bytes, custom_headers=None):
+def fetch_keys_via_api(api_url, pssh_string, license_url, token=None):
     """
-    Sends the Widevine license challenge directly to the license server using pure requests.
+    Sends the license details to your external backend service 
+    to retrieve decrypted keys safely without local dependency conflicts.
     """
-    headers = custom_headers or {}
-    headers.setdefault("Content-Type", "application/octet-stream")
+    payload = {
+        "pssh": pssh_string,
+        "license_url": license_url,
+        "token": token
+    }
+    headers = {"Content-Type": "application/json"}
     
-    response = requests.post(url=license_url, data=challenge_bytes, headers=headers, timeout=15)
+    response = requests.post(api_url, json=payload, headers=headers, timeout=20)
     response.raise_for_status()
-    return response.content
+    
+    # Expecting JSON response like: {"keys": ["kid1:key1", "kid2:key2"]}
+    data = response.json()
+    return data.get("keys", [])
