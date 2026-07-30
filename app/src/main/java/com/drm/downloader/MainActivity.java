@@ -4,17 +4,21 @@ import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     private EditText urlInput;
     private Button btnDownload;
+    private TextView statusText, speedText;
+    private String selectedFormatId = "best";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -23,18 +27,24 @@ public class MainActivity extends AppCompatActivity {
 
         urlInput = findViewById(R.id.urlInput);
         btnDownload = findViewById(R.id.btnDownload);
+        statusText = findViewById(R.id.statusText);
+        speedText = findViewById(R.id.speedText);
 
+        // Initialize Python in background
         new Thread(() -> {
             try {
                 if (!Python.isStarted()) {
                     Python.start(new AndroidPlatform(MainActivity.this));
                     Log.i("MainActivity", "Python initialized successfully.");
+                    runOnUiThread(() -> statusText.setText("Ready - System Online"));
                 }
             } catch (Exception e) {
                 Log.e("MainActivity", "Failed to initialize Python runtime", e);
+                runOnUiThread(() -> statusText.setText("Python Init Failed"));
             }
         }).start();
 
+        // Handle button click to fetch streams
         btnDownload.setOnClickListener(v -> {
             String url = urlInput.getText().toString().trim();
             if (url.isEmpty()) {
@@ -42,26 +52,35 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            Toast.makeText(MainActivity.this, "Analyzing stream and fetching options...", Toast.LENGTH_LONG).show();
+            statusText.setText("Analyzing stream & file sizes...");
+            speedText.setText("Parsing");
             btnDownload.setEnabled(false);
 
             new Thread(() -> {
                 try {
                     Python py = Python.getInstance();
                     PyObject module = py.getModule("drm_manager");
-                    PyObject result = module.callAttr("get_stream_options", url);
+                    PyObject resultList = module.callAttr("get_stream_options", url);
                     
-                    String streamDetails = result != null ? result.toString() : "Streams parsed successfully.";
+                    List<PyObject> pyList = resultList.asList();
+                    String[] optionsArray = new String[pyList.size()];
+                    for (int i = 0; i < pyList.size(); i++) {
+                        optionsArray[i] = pyList.get(i).toString();
+                    }
 
                     runOnUiThread(() -> {
                         btnDownload.setEnabled(true);
-                        showStreamOptionsDialog(streamDetails);
+                        statusText.setText("Select resolution");
+                        speedText.setText("Idle");
+                        showResolutionSelector(url, optionsArray);
                     });
 
                 } catch (Exception e) {
                     Log.e("MainActivity", "Stream extraction failed", e);
                     runOnUiThread(() -> {
                         btnDownload.setEnabled(true);
+                        statusText.setText("Error occurred");
+                        speedText.setText("Failed");
                         Toast.makeText(MainActivity.this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
                     });
                 }
@@ -69,14 +88,56 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void showStreamOptionsDialog(String details) {
-        new AlertDialog.Builder(MainActivity.this)
-            .setTitle("Available Streams & Audio")
-            .setMessage(details)
-            .setPositiveButton("Start Download", (dialog, which) -> {
-                Toast.makeText(MainActivity.this, "Initiating download & decryption...", Toast.LENGTH_SHORT).show();
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
+    private void showResolutionSelector(String url, String[] options) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+        builder.setTitle("Select Quality & File Size");
+        
+        builder.setItems(options, (dialog, which) -> {
+            String selectedOption = options[which];
+            // Extract format ID from selection string (e.g., "... | ID:137")
+            if (selectedOption.contains("ID:")) {
+                selectedFormatId = selectedOption.substring(selectedOption.indexOf("ID:") + 3);
+            }
+            
+            Toast.makeText(MainActivity.this, "Selected: " + selectedOption, Toast.LENGTH_SHORT).show();
+            startDownloadProcess(url, selectedFormatId);
+        });
+        
+        builder.setNegativeButton("Cancel", (dialog, which) -> {
+            statusText.setText("Ready");
+            speedText.setText("Idle");
+        });
+        builder.show();
+    }
+
+    private void startDownloadProcess(String url, String formatId) {
+        statusText.setText("Downloading & decrypting fragments...");
+        speedText.setText("Aria2c active");
+        btnDownload.setEnabled(false);
+
+        new Thread(() -> {
+            try {
+                Python py = Python.getInstance();
+                PyObject module = py.getModule("drm_manager");
+                PyObject result = module.callAttr("download_selected_stream", url, formatId);
+                String msg = result != null ? result.toString() : "Download completed.";
+
+                runOnUiThread(() -> {
+                    btnDownload.setEnabled(true);
+                    statusText.setText("Download Complete");
+                    speedText.setText("Done");
+                    Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
+                });
+
+            } catch (Exception e) {
+                Log.e("MainActivity", "Download failed", e);
+                runOnUiThread(() -> {
+                    btnDownload.setEnabled(true);
+                    statusText.setText("Download Failed");
+                    speedText.setText("Error");
+                    Toast.makeText(MainActivity.this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                });
+            }
+        }).start();
     }
 }
