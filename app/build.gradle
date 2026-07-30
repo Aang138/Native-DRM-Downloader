@@ -29,11 +29,8 @@ chaquopy {
     defaultConfig {
         version "3.10"
         pip {
-            install "pywidevine"
             install "cryptography"
             install "requests"
-            install "pycryptodome"
-            install "lxml"
         }
     }
 }
