@@ -1,6 +1,21 @@
-plugins {
-    id 'com.android.application' version '8.1.1' apply false
-    id 'com.chaquo.python' version '17.0.0' apply false
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://chaquo.com/maven" }
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:8.1.1"
+        classpath "com.chaquopy.python:gradle:15.0.1"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://chaquo.com/maven" }
+    }
 }
 
 task clean(type: Delete) {
