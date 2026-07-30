@@ -5,8 +5,8 @@ import android.util.Log;
 
 import com.yausername.youtubedl_android.YoutubeDL;
 import com.yausername.youtubedl_android.YoutubeDLException;
-import com.yausername.youtubedl_android.ffmpeg.FFmpeg;
-import com.yausername.youtubedl_android.aria2c.Aria2c;
+import com.github.junkfood02.youtubedl_android.ffmpeg.FFmpeg;
+import com.github.junkfood02.youtubedl_android.aria2c.Aria2c;
 
 public class MyApplication extends Application {
     @Override
