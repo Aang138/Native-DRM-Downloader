@@ -28,6 +28,7 @@ android {
 chaquopy {
     defaultConfig {
         version "3.10"
+        buildPython "python"
         pip {
             install "cryptography"
             install "requests"
