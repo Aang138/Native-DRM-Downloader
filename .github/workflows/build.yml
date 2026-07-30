@@ -18,10 +18,11 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Gradle on Runner
+      - name: Download and Setup Modern Gradle 8.5
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gradle
+          wget https://services.gradle.org/distributions/gradle-8.5-bin.zip
+          unzip -q gradle-8.5-bin.zip
+          echo "$PWD/gradle-8.5/bin" >> $GITHUB_PATH
 
       - name: Generate Gradle Wrapper
         run: gradle wrapper --gradle-version 8.5
