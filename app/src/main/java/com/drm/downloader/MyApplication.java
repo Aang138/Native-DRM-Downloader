@@ -17,7 +17,7 @@ public class MyApplication extends Application {
             FFmpeg.getInstance().init(this);
             Aria2c.getInstance().init(this);
         } catch (YoutubeDLException e) {
-            Log.e("MyApplication", "Failed to initialize youtubedl-android components", e);
+            Log.e("MyApplication", "Failed to initialize downloader components", e);
         }
     }
 }
