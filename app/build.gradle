@@ -32,6 +32,8 @@ chaquopy {
             install "pywidevine"
             install "cryptography"
             install "requests"
+            install "pycryptodome"
+            install "lxml"
         }
     }
 }
@@ -40,7 +42,6 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.9.0'
     
-    // Core yt-dlp engine, ffmpeg merger, and aria2c multi-threaded downloader
     implementation 'io.github.junkfood02.youtubedl-android:library:0.18.1'
     implementation 'io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1'
     implementation 'io.github.junkfood02.youtubedl-android:aria2c:0.18.1'
