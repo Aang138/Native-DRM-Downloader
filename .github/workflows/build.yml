@@ -31,8 +31,13 @@ jobs:
         yes | sdkmanager --licenses || true
         sdkmanager --install "build-tools;33.0.1" "platforms;android-33" "ndk;25.1.8937393"
 
-    - name: Build Debug APK
+    - name: Generate Gradle Wrapper & Build APK
       run: |
+        if [ ! -f "gradlew" ]; then
+          echo "Gradle wrapper missing. Generating on the fly..."
+          sudo apt-get update && sudo apt-get install -y gradle
+          gradle wrapper --gradle-version 8.5
+        fi
         chmod +x gradlew
         ./gradlew assembleDebug --stacktrace
 
