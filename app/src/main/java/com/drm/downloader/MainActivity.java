@@ -1,7 +1,6 @@
 package com.drm.downloader;
 
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -12,6 +11,8 @@ import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -30,6 +31,9 @@ public class MainActivity extends AppCompatActivity {
         btnDownload = findViewById(R.id.btnDownload);
         statusText = findViewById(R.id.statusText);
         speedText = findViewById(R.id.speedText);
+
+        // Extract native binaries from assets on first launch
+        extractAssetBinaries();
 
         new Thread(() -> {
             try {
@@ -80,6 +84,29 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void extractAssetBinaries() {
+        String[] binaries = {"ffmpeg", "mp4decrypt"};
+        File filesDir = getFilesDir();
+        for (String binName : binaries) {
+            File outFile = new File(filesDir, binName);
+            if (!outFile.exists()) {
+                try (InputStream in = getAssets().open(binName);
+                     FileOutputStream out = new FileOutputStream(outFile)) {
+                    byte[] buffer = new byte[1024];
+                    int read;
+                    while ((read = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, read);
+                    }
+                    outFile.setExecutable(true, false);
+                } catch (Exception e) {
+                    // Asset might be missing or handled elsewhere
+                }
+            } else {
+                outFile.setExecutable(true, false);
+            }
+        }
+    }
+
     private void showResolutionSelector(String url, String[] options) {
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
         builder.setTitle("Select Quality & Size");
@@ -103,7 +130,6 @@ public class MainActivity extends AppCompatActivity {
                             showKeyInputDialog(url, selectedFormatId);
                         } else {
                             statusText.setText("Unencrypted stream");
-                            Toast.makeText(MainActivity.this, "Unencrypted: Downloading directly...", Toast.LENGTH_SHORT).show();
                             startDownloadProcess(url, selectedFormatId, "");
                         }
                     });
@@ -119,10 +145,10 @@ public class MainActivity extends AppCompatActivity {
     private void showKeyInputDialog(String url, String formatId) {
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
         builder.setTitle("Enter DRM Key");
-        builder.setMessage("This stream is encrypted. Paste key as: KID:KEY");
+        builder.setMessage("This stream is encrypted. Paste key as: KID:KEY (or multiple comma-separated pairs)");
 
         final EditText input = new EditText(MainActivity.this);
-        input.setHint("e.g., 12345678...:abcdef01...");
+        input.setHint("e.g., kid1:key1,kid2:key2");
         builder.setView(input);
 
         builder.setPositiveButton("Download", (dialog, which) -> {
