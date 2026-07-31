@@ -36,7 +36,11 @@ jobs:
         yes | sdkmanager --licenses || true
         sdkmanager --install "build-tools;33.0.1" "platforms;android-33" "ndk;25.1.8937393"
 
-    - name: Build APK
+    - name: Generate local.properties
+      run: |
+        echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+    - name: Build APK with Gradle 8.5
       run: |
         gradle wrapper --gradle-version 8.5 --distribution-type bin
         chmod +x gradlew

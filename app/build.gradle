@@ -17,7 +17,7 @@ android {
         }
 
         python {
-            buildPython "python3.10"
+            buildPython "python3"
             pip {
                 install "yt-dlp"
                 install "requests"
