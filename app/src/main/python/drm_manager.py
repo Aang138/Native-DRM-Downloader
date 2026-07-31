@@ -19,10 +19,15 @@ def is_encrypted_stream(url):
 
 def get_stream_options(url):
     ydl_opts = {
-        'allow_unplayable_formats': True,
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        },
+    "http_headers": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Referer": "https://www.crunchyroll.com/",
+        "Origin": "https://www.crunchyroll.com"
+    },
+    "format": "best"
+},
         'socket_timeout': 30,
         'quiet': True,
     }
@@ -78,13 +83,15 @@ def download_selected_stream(url, format_id, manual_key, callback=None):
     if callback: callback.onProgress(5, "Downloading video and audio tracks...")
 
     ydl_opts = {
-        'format': target_format,
-        'allow_unplayable_formats': True,
-        'outtmpl': raw_template,
-        'progress_hooks': [my_hook],
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        },
+    "http_headers": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Referer": "https://www.crunchyroll.com/",
+        "Origin": "https://www.crunchyroll.com"
+    },
+    "format": "best"
+},
     }
 
     try:
