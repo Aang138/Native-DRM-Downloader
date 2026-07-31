@@ -56,6 +56,7 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
     mp4decrypt_bin = os.path.join(app_files_dir, "mp4decrypt")
     ffmpeg_bin = os.path.join(app_files_dir, "ffmpeg")
     
+    # Ensure binary files have explicit execute permissions
     if os.path.exists(ffmpeg_bin): os.chmod(ffmpeg_bin, 0o755)
     if os.path.exists(mp4decrypt_bin): os.chmod(mp4decrypt_bin, 0o755)
 
@@ -86,14 +87,15 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
         'outtmpl': target_outtmpl,
         'progress_hooks': [my_hook],
         'merge_output_format': 'mp4',
+        'verbose': True, # Enable verbose logging to catch any merging or path errors
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         },
     }
     
-    # CRITICAL: Provide ffmpeg path to yt-dlp so it can automatically merge audio and video
+    # CRITICAL FIX: Pass the PARENT DIRECTORY containing ffmpeg, not the binary file path itself
     if os.path.exists(ffmpeg_bin):
-        ydl_opts['ffmpeg_location'] = ffmpeg_bin
+        ydl_opts['ffmpeg_location'] = app_files_dir
 
     # CASE 1: UNENCRYPTED STREAM -> yt-dlp handles download + native ffmpeg merge automatically
     if not manual_key or ":" not in manual_key:
@@ -110,7 +112,6 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
         if callback: callback.onProgress("Downloading encrypted streams...")
         raw_outtmpl = os.path.join(download_path, f'dl_{unique_id}_%(format_id)s.%(ext)s')
         ydl_opts['outtmpl'] = raw_outtmpl
-        # Remove merge output format for encrypted raw downloads
         ydl_opts.pop('merge_output_format', None)
 
         try:
