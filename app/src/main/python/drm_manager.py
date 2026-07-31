@@ -4,28 +4,15 @@ import requests
 import subprocess
 import yt_dlp
 
-def ensure_binaries(app_files_dir, callback=None):
+def ensure_binaries(app_files_dir):
+    # Ensure binary file permissions are fully executable in the private files directory
     ffmpeg_bin = os.path.join(app_files_dir, "ffmpeg")
-    log_path = os.path.join("/storage/emulated/0/Download/DRM_Downloads", "debug_log.txt")
+    mp4decrypt_bin = os.path.join(app_files_dir, "mp4decrypt")
     
-    if not os.path.exists(ffmpeg_bin) or os.path.getsize(ffmpeg_bin) < 1000000:
-        try:
-            if callback: callback.onProgress("Downloading ffmpeg component...")
-            url = "https://github.com/eugeneware/ffmpeg-static/releases/download/b4.4/ffmpeg-linux-arm64"
-            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-            
-            # Use requests with allow_redirects to properly follow GitHub -> AWS redirects
-            response = requests.get(url, headers=headers, allow_redirects=True, timeout=60)
-            if response.status_code == 200:
-                with open(ffmpeg_bin, 'wb') as f:
-                    f.write(response.content)
-                os.chmod(ffmpeg_bin, 0o755)
-            else:
-                with open(log_path, "a") as logf:
-                    logf.write(f"FFmpeg download failed with status code: {response.status_code}\n")
-        except Exception as e:
-            with open(log_path, "a") as logf:
-                logf.write(f"FFmpeg download exception: {str(e)}\n")
+    if os.path.exists(ffmpeg_bin):
+        os.chmod(ffmpeg_bin, 0o755)
+    if os.path.exists(mp4decrypt_bin):
+        os.chmod(mp4decrypt_bin, 0o755)
 
 def is_encrypted_stream(url):
     try:
@@ -76,19 +63,10 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
     download_path = "/storage/emulated/0/Download/DRM_Downloads"
     os.makedirs(download_path, exist_ok=True)
 
-    class ProgressWrapper:
-        def onProgress(self, msg):
-            if callback:
-                try: callback.onProgress(msg)
-                except Exception: pass
-
-    ensure_binaries(app_files_dir, ProgressWrapper())
+    ensure_binaries(app_files_dir)
 
     mp4decrypt_bin = os.path.join(app_files_dir, "mp4decrypt")
     ffmpeg_bin = os.path.join(app_files_dir, "ffmpeg")
-
-    if os.path.exists(ffmpeg_bin): os.chmod(ffmpeg_bin, 0o755)
-    if os.path.exists(mp4decrypt_bin): os.chmod(mp4decrypt_bin, 0o755)
 
     def my_hook(d):
         if d['status'] == 'downloading':
