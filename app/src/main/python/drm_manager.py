@@ -18,6 +18,12 @@ def get_stream_options(url):
                 format_id = f.get('format_id', 'best')
                 ext = f.get('ext', 'mp4')
                 resolution = f.get('resolution', f.get('format_note', 'HD'))
+                vcodec = f.get('vcodec', 'none')
+                acodec = f.get('acodec', 'none')
+                
+                if vcodec == 'none' and acodec != 'none':
+                    resolution = "audio only"
+                
                 filesize = f.get('filesize', f.get('filesize_approx', 0))
                 size_mb = round(filesize / (1024 * 1024), 2) if filesize else "Unknown"
                 desc = f"Res: {resolution} | Ext: {ext} | Size: {size_mb}MB | ID:{format_id}"
@@ -46,14 +52,21 @@ def download_selected_stream(url, format_id, callback=None):
         elif d['status'] == 'finished':
             if callback:
                 try:
-                    callback.onProgress("Merging video & audio...")
+                    callback.onProgress("Merging video & audio tracks...")
                 except Exception:
                     pass
 
+    # If a specific video format ID is selected, combine it with the best available audio track
+    if format_id != "best" and not format_id.startswith("audio_"):
+        target_format = f"{format_id}+bestaudio/best"
+    else:
+        target_format = format_id
+
     ydl_opts = {
-        'format': format_id,
+        'format': target_format,
         'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
         'progress_hooks': [my_hook],
+        'merge_output_format': 'mp4',
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         },
@@ -61,6 +74,6 @@ def download_selected_stream(url, format_id, callback=None):
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
-        return f"Saved to Phone Storage -> Download/DRM_Downloads"
+        return f"Saved with Audio to -> Download/DRM_Downloads"
     except Exception as e:
         return f"Download failed: {str(e)}"
