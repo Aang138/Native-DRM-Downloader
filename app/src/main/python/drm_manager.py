@@ -1,7 +1,21 @@
 import os
 import time
+import requests
 import subprocess
 import yt_dlp
+
+def is_encrypted_stream(url):
+    try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        res = requests.get(url, headers=headers, timeout=10)
+        text = res.text.lower()
+        if 'contentprotection' in text or 'pssh' in text:
+            return True
+    except Exception:
+        pass
+    return False
 
 def get_stream_options(url):
     ydl_opts = {
@@ -66,7 +80,6 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
     unique_id = int(time.time())
     target_outtmpl = os.path.join(download_path, f'video_{unique_id}_%(title)s.%(ext)s')
 
-    # CASE 1: UNENCRYPTED STREAM (No manual key given) -> Let yt-dlp + ffmpeg handle auto-merging smoothly
     if not manual_key or ":" not in manual_key:
         if callback: callback.onProgress("Downloading & merging stream...")
         ydl_opts = {
@@ -88,8 +101,6 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
             return f"Successfully downloaded & merged!"
         except Exception as e:
             return f"Download failed: {str(e)}"
-
-    # CASE 2: ENCRYPTED STREAM (Manual key provided) -> Download raw tracks, decrypt, and stitch
     else:
         if callback: callback.onProgress("Downloading encrypted streams...")
         enc_output = os.path.join(download_path, f'raw_{unique_id}_%(format_id)s.%(ext)s')

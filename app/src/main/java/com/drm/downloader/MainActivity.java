@@ -88,7 +88,29 @@ public class MainActivity extends AppCompatActivity {
             if (selectedOption.contains("ID:")) {
                 selectedFormatId = selectedOption.substring(selectedOption.indexOf("ID:") + 3);
             }
-            showKeyInputDialog(url, selectedFormatId);
+            
+            statusText.setText("Checking encryption status...");
+            new Thread(() -> {
+                try {
+                    Python py = Python.getInstance();
+                    PyObject module = py.getModule("drm_manager");
+                    PyObject isEncryptedObj = module.callAttr("is_encrypted_stream", url);
+                    boolean isEncrypted = isEncryptedObj != null && isEncryptedObj.toBoolean();
+
+                    runOnUiThread(() -> {
+                        if (isEncrypted) {
+                            statusText.setText("Encrypted stream detected");
+                            showKeyInputDialog(url, selectedFormatId);
+                        } else {
+                            statusText.setText("Unencrypted stream");
+                            Toast.makeText(MainActivity.this, "Unencrypted: Downloading directly...", Toast.LENGTH_SHORT).show();
+                            startDownloadProcess(url, selectedFormatId, "");
+                        }
+                    });
+                } catch (Exception e) {
+                    runOnUiThread(() -> startDownloadProcess(url, selectedFormatId, ""));
+                }
+            }).start();
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> statusText.setText("Ready"));
         builder.show();
@@ -96,8 +118,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void showKeyInputDialog(String url, String formatId) {
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
-        builder.setTitle("Enter DRM Key (Optional)");
-        builder.setMessage("If encrypted, paste key as: KID:KEY\nLeave blank if unencrypted.");
+        builder.setTitle("Enter DRM Key");
+        builder.setMessage("This stream is encrypted. Paste key as: KID:KEY");
 
         final EditText input = new EditText(MainActivity.this);
         input.setHint("e.g., 12345678...:abcdef01...");
@@ -107,9 +129,7 @@ public class MainActivity extends AppCompatActivity {
             String manualKey = input.getText().toString().trim();
             startDownloadProcess(url, formatId, manualKey);
         });
-        builder.setNegativeButton("Skip Key", (dialog, which) -> {
-            startDownloadProcess(url, formatId, "");
-        });
+        builder.setNegativeButton("Cancel", (dialog, which) -> statusText.setText("Ready"));
         builder.show();
     }
 
