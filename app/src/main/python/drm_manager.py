@@ -92,6 +92,18 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
     if os.path.exists(ffmpeg_bin): os.chmod(ffmpeg_bin, 0o755)
     if os.path.exists(mp4decrypt_bin): os.chmod(mp4decrypt_bin, 0o755)
 
+    # --- DIAGNOSTICS: confirm ffmpeg/mp4decrypt actually exist where we expect ---
+    log(f"app_files_dir={app_files_dir}")
+    try:
+        log(f"Contents of app_files_dir: {os.listdir(app_files_dir)}")
+    except Exception as e:
+        log(f"Could not list app_files_dir: {e}")
+    log(f"ffmpeg_bin path={ffmpeg_bin} exists={os.path.exists(ffmpeg_bin)}")
+    log(f"mp4decrypt_bin path={mp4decrypt_bin} exists={os.path.exists(mp4decrypt_bin)}")
+    if os.path.exists(ffmpeg_bin):
+        log(f"ffmpeg_bin is executable={os.access(ffmpeg_bin, os.X_OK)}")
+    # -------------------------------------------------------------------------
+
     def my_hook(d):
         if d['status'] == 'downloading':
             p = d.get('_percent_str', '0%').strip()
@@ -122,6 +134,10 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
     }
     if os.path.exists(ffmpeg_bin):
         ydl_opts['ffmpeg_location'] = app_files_dir
+        log(f"ffmpeg_location set in ydl_opts = {app_files_dir}")
+    else:
+        log("WARNING: ffmpeg_bin does not exist — ffmpeg_location NOT set for yt-dlp. "
+            "yt-dlp will be unable to merge internally.")
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -165,8 +181,6 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
         dec_video = video_file.replace("dl_", "dec_") if video_file else None
         dec_audio = audio_file.replace("dl_", "dec_") if audio_file else None
 
-        # Support multiple KID:KEY pairs separated by commas — DRM video/audio
-        # often use DIFFERENT KIDs, so a single pair may only decrypt one track.
         key_args = []
         for pair in manual_key.strip().split(","):
             pair = pair.strip()
@@ -229,9 +243,12 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
                 cmd_fallback = [ffmpeg_bin, "-y", "-i", video_file, "-c", "copy", final_output]
                 subprocess.run(cmd_fallback, check=True)
                 merge_had_audio = False
-        elif video_file and os.path.exists(video_file):
-            log("No usable audio_file at merge time — saving video-only")
-            os.rename(video_file, final_output)
+        else:
+            log(f"Merge SKIPPED. Reason check: video_file_exists={os.path.exists(video_file) if video_file else False} "
+                f"audio_file_exists={os.path.exists(audio_file) if audio_file else False} "
+                f"ffmpeg_bin_exists={os.path.exists(ffmpeg_bin)}")
+            if video_file and os.path.exists(video_file):
+                os.rename(video_file, final_output)
             merge_had_audio = False
 
         for f in session_files:
