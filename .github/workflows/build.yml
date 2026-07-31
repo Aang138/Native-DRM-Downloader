@@ -23,11 +23,6 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Setup Gradle 8.5
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: '8.5'
-
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
@@ -36,11 +31,12 @@ jobs:
         yes | sdkmanager --licenses || true
         sdkmanager --install "build-tools;33.0.1" "platforms;android-33" "ndk;25.1.8937393"
 
-    - name: Build APK with Gradle 8.5
+    - name: Install Gradle & Build APK
       run: |
+        sudo apt-get update && sudo apt-get install -y gradle
         gradle wrapper --gradle-version 8.5 --distribution-type bin
         chmod +x gradlew
-        ./gradlew assembleDebug --info
+        ./gradlew assembleDebug --stacktrace
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
