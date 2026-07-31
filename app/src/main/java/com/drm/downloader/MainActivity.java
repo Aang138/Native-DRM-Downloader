@@ -1,23 +1,31 @@
 package com.drm.downloader;
 
+import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.VideoView;
+import android.widget.MediaController;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
+import java.io.File;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
     private EditText urlInput;
-    private Button btnDownload;
+    private Button btnDownload, btnPlay;
     private TextView statusText, speedText;
+    private ProgressBar progressBar;
+    private VideoView videoView;
     private String selectedFormatId = "best";
+    private String lastDownloadedFile = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,8 +34,26 @@ public class MainActivity extends AppCompatActivity {
 
         urlInput = findViewById(R.id.urlInput);
         btnDownload = findViewById(R.id.btnDownload);
+        btnPlay = findViewById(R.id.btnPlay);
         statusText = findViewById(R.id.statusText);
         speedText = findViewById(R.id.speedText);
+        progressBar = findViewById(R.id.progressBar);
+        videoView = findViewById(R.id.videoView);
+
+        // Setup native video player controller
+        MediaController mediaController = new MediaController(this);
+        mediaController.setAnchorView(videoView);
+        videoView.setMediaController(mediaController);
+
+        btnPlay.setOnClickListener(v -> {
+            if (!lastDownloadedFile.isEmpty() && new File(lastDownloadedFile).exists()) {
+                videoView.setVideoURI(Uri.parse(lastDownloadedFile));
+                videoView.start();
+                Toast.makeText(this, "Playing video...", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "No downloaded video found yet!", Toast.LENGTH_SHORT).show();
+            }
+        });
 
         new Thread(() -> {
             try {
@@ -48,6 +74,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
             statusText.setText("Analyzing stream...");
+            progressBar.setProgress(0);
             btnDownload.setEnabled(false);
 
             new Thread(() -> {
@@ -116,10 +143,10 @@ public class MainActivity extends AppCompatActivity {
     private void showKeyInputDialog(String url, String formatId) {
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
         builder.setTitle("Enter DRM Key");
-        builder.setMessage("This stream is encrypted. Paste key as: KID:KEY (or multiple comma-separated pairs)");
+        builder.setMessage("This stream is encrypted. Paste key as: KID:KEY");
 
         final EditText input = new EditText(MainActivity.this);
-        input.setHint("e.g., kid1:key1,kid2:key2");
+        input.setHint("e.g., kid1:key1");
         builder.setView(input);
 
         builder.setPositiveButton("Download", (dialog, which) -> {
@@ -135,8 +162,11 @@ public class MainActivity extends AppCompatActivity {
         btnDownload.setEnabled(false);
 
         class ProgressCallback {
-            public void onProgress(String msg) {
-                runOnUiThread(() -> speedText.setText(msg));
+            public void onProgress(int percent, String msg) {
+                runOnUiThread(() -> {
+                    progressBar.setProgress(percent);
+                    speedText.setText(msg);
+                });
             }
         }
 
@@ -149,18 +179,28 @@ public class MainActivity extends AppCompatActivity {
                 
                 ProgressCallback callback = new ProgressCallback();
                 PyObject result = module.callAttr("download_selected_stream", url, formatId, manualKey, nativeLibDir, callback);
+                PyObject filePathObj = module.get("last_saved_file");
+                if (filePathObj != null) {
+                    lastDownloadedFile = filePathObj.toString();
+                }
                 String msg = result != null ? result.toString() : "Completed.";
 
                 runOnUiThread(() -> {
                     btnDownload.setEnabled(true);
-                    statusText.setText("Done");
-                    speedText.setText("Saved in Download/DRM_Downloads");
+                    if (msg.contains("Successfully")) {
+                        statusText.setText("Download Successful!");
+                        speedText.setTextColor(0xFF00E676); // Green
+                    } else {
+                        statusText.setText("Download Failed!");
+                        speedText.setTextColor(0xFFFF1744); // Red
+                    }
                     Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> {
                     btnDownload.setEnabled(true);
-                    statusText.setText("Failed");
+                    statusText.setText("Download Failed!");
+                    speedText.setTextColor(0xFFFF1744);
                     Toast.makeText(MainActivity.this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
             }
