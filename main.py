@@ -1,23 +1,20 @@
-import requests
+import os
+import sys
+import yt_dlp
 
-def fetch_crunchyroll_manifest(mpd_url, session_cookie=None):
-    """
-    Handles authenticated Crunchyroll MPD manifest requests to bypass 401 errors.
-    """
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Referer": "https://www.crunchyroll.com/"
+def download_stream(url):
+    ydl_opts = {
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://www.crunchyroll.com/',
+        },
+        'format': 'best',
     }
-    
-    if session_cookie:
-        headers["Cookie"] = f"session_id={session_cookie}"
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
 
-    response = requests.get(mpd_url, headers=headers, allow_redirects=True)
-    
-    if response.status_code == 200:
-        return response.text
+if __name__ == '__main__':
+    if len(sys.argv) > 1:
+        download_stream(sys.argv[1])
     else:
-        raise Exception(f"Failed to fetch manifest. Status code: {response.status_code}")
-
-if __name__ == "__main__":
-    print("Crunchyroll Handler initialized in main.py")
+        print("Please provide a stream URL.")
