@@ -1,9 +1,6 @@
 import os
-import subprocess
-import requests
+import time
 import yt_dlp
-
-KEY_API_ENDPOINT = ""
 
 def get_stream_options(url):
     ydl_opts = {
@@ -24,7 +21,6 @@ def get_stream_options(url):
                 ext = f.get('ext', 'mp4')
                 resolution = f.get('resolution', f.get('format_note', 'HD'))
                 vcodec = f.get('vcodec', 'none')
-                acodec = f.get('acodec', 'none')
                 
                 if vcodec != 'none':
                     filesize = f.get('filesize', f.get('filesize_approx', 0))
@@ -33,7 +29,7 @@ def get_stream_options(url):
                     options.append(desc)
                     
         if not options:
-            options.append("Best Quality Single File | ID:best")
+            options.append("Best Quality Available | ID:best")
     except Exception as e:
         options.append(f"Error parsing stream: {str(e)} | ID:best")
     return options
@@ -42,7 +38,6 @@ def download_selected_stream(url, format_id, app_files_dir, callback=None):
     download_path = "/storage/emulated/0/Download/DRM_Downloads"
     os.makedirs(download_path, exist_ok=True)
     
-    mp4decrypt_bin = os.path.join(app_files_dir, "mp4decrypt")
     ffmpeg_bin = os.path.join(app_files_dir, "ffmpeg")
     
     def my_hook(d):
@@ -56,26 +51,44 @@ def download_selected_stream(url, format_id, app_files_dir, callback=None):
                     callback.onProgress(msg)
                 except Exception:
                     pass
+        elif d['status'] == 'finished':
+            if callback:
+                try:
+                    callback.onProgress("Merging video & audio tracks...")
+                except Exception:
+                    pass
 
     if callback:
-        callback.onProgress("Downloading stream...")
+        callback.onProgress("Downloading stream with audio...")
 
-    target_outtmpl = os.path.join(download_path, 'downloaded_video.%(ext)s')
+    # Automatically combine selected resolution with best available audio track
+    if format_id != "best":
+        target_format = f"{format_id}+bestaudio/best"
+    else:
+        target_format = "best"
+
+    # Use unique timestamp to prevent file collision on subsequent downloads
+    unique_id = int(time.time())
+    target_outtmpl = os.path.join(download_path, f'video_{unique_id}_%(title)s.%(ext)s')
 
     ydl_opts = {
-        'format': format_id,
+        'format': target_format,
         'allow_unplayable_formats': True,
         'outtmpl': target_outtmpl,
         'progress_hooks': [my_hook],
+        'merge_output_format': 'mp4',
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         },
     }
     
+    if os.path.exists(ffmpeg_bin):
+        ydl_opts['ffmpeg_location'] = ffmpeg_bin
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
     except Exception as e:
         return f"Download failed: {str(e)}"
 
-    return f"Saved successfully to -> Download/DRM_Downloads"
+    return f"Saved successfully with audio to -> Download/DRM_Downloads"
