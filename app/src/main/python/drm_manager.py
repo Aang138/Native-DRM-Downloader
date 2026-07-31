@@ -54,20 +54,18 @@ def download_selected_stream(url, format_id, app_files_dir, callback=None):
         elif d['status'] == 'finished':
             if callback:
                 try:
-                    callback.onProgress("Merging video & audio tracks...")
+                    callback.onProgress("Stitching audio & video tracks...")
                 except Exception:
                     pass
 
     if callback:
-        callback.onProgress("Downloading stream with audio...")
+        callback.onProgress("Initializing download & merge engine...")
 
-    # Automatically combine selected resolution with best available audio track
     if format_id != "best":
         target_format = f"{format_id}+bestaudio/best"
     else:
         target_format = "best"
 
-    # Use unique timestamp to prevent file collision on subsequent downloads
     unique_id = int(time.time())
     target_outtmpl = os.path.join(download_path, f'video_{unique_id}_%(title)s.%(ext)s')
 
@@ -82,6 +80,7 @@ def download_selected_stream(url, format_id, app_files_dir, callback=None):
         },
     }
     
+    # Properly pass FFmpeg binary location to yt-dlp postprocessor
     if os.path.exists(ffmpeg_bin):
         ydl_opts['ffmpeg_location'] = ffmpeg_bin
 
@@ -91,4 +90,4 @@ def download_selected_stream(url, format_id, app_files_dir, callback=None):
     except Exception as e:
         return f"Download failed: {str(e)}"
 
-    return f"Saved successfully with audio to -> Download/DRM_Downloads"
+    return f"Successfully saved and stitched to -> Download/DRM_Downloads"
