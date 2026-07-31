@@ -3,6 +3,7 @@ import yt_dlp
 
 def get_stream_options(url):
     ydl_opts = {
+        'allow_unplayable_formats': True,
         'http_headers': {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         },
@@ -56,7 +57,6 @@ def download_selected_stream(url, format_id, callback=None):
                 except Exception:
                     pass
 
-    # If a specific video format ID is selected, combine it with the best available audio track
     if format_id != "best" and not format_id.startswith("audio_"):
         target_format = f"{format_id}+bestaudio/best"
     else:
@@ -64,6 +64,7 @@ def download_selected_stream(url, format_id, callback=None):
 
     ydl_opts = {
         'format': target_format,
+        'allow_unplayable_formats': True,
         'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
         'progress_hooks': [my_hook],
         'merge_output_format': 'mp4',
