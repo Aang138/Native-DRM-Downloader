@@ -69,7 +69,7 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
                 except Exception: pass
         elif d['status'] == 'finished':
             if callback:
-                try: callback.onProgress("Finalizing file...")
+                try: callback.onProgress("Processing & merging files...")
                 except Exception: pass
 
     if format_id != "best":
@@ -78,86 +78,86 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
         target_format = "best"
 
     unique_id = int(time.time())
-    target_outtmpl = os.path.join(download_path, f'video_{unique_id}_%(title)s.%(ext)s')
+    raw_outtmpl = os.path.join(download_path, f'dl_{unique_id}_%(format_id)s.%(ext)s')
 
-    if not manual_key or ":" not in manual_key:
-        if callback: callback.onProgress("Downloading & merging stream...")
-        ydl_opts = {
-            'format': target_format,
-            'allow_unplayable_formats': True,
-            'outtmpl': target_outtmpl,
-            'progress_hooks': [my_hook],
-            'merge_output_format': 'mp4',
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            },
-        }
-        if os.path.exists(ffmpeg_bin):
-            ydl_opts['ffmpeg_location'] = ffmpeg_bin
+    if callback: callback.onProgress("Downloading streams...")
+    ydl_opts = {
+        'format': target_format,
+        'allow_unplayable_formats': True,
+        'outtmpl': raw_outtmpl,
+        'progress_hooks': [my_hook],
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        },
+    }
 
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-            return f"Successfully downloaded & merged!"
-        except Exception as e:
-            return f"Download failed: {str(e)}"
-    else:
-        if callback: callback.onProgress("Downloading encrypted streams...")
-        enc_output = os.path.join(download_path, f'raw_{unique_id}_%(format_id)s.%(ext)s')
-        ydl_opts = {
-            'format': target_format,
-            'allow_unplayable_formats': True,
-            'outtmpl': enc_output,
-            'progress_hooks': [my_hook],
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            },
-        }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+    except Exception as e:
+        return f"Download failed: {str(e)}"
 
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-        except Exception as e:
-            return f"Download failed: {str(e)}"
+    # Find all downloaded raw tracks
+    downloaded_files = [os.path.join(download_path, f) for f in os.listdir(download_path) if f.startswith(f"dl_{unique_id}")]
+    
+    if not downloaded_files:
+        return f"Download failed: No files found."
 
-        downloaded_files = [os.path.join(download_path, f) for f in os.listdir(download_path) if f.startswith(f"raw_{unique_id}")]
-        video_file = next((f for f in downloaded_files if "video" in f or format_id in f), None)
-        audio_file = next((f for f in downloaded_files if "audio" in f or "f251" in f or "f140" in f or "mp4a" in f), None)
-        
-        if not video_file:
-            return f"Download failed: Video stream not found."
+    video_file = next((f for f in downloaded_files if "video" in f or format_id in f or f.endswith(('.mp4', '.mkv', '.webm'))), None)
+    audio_file = next((f for f in downloaded_files if "audio" in f or "f251" in f or "f140" in f or "mp4a" in f or f.endswith(('.m4a', '.opus', '.aac'))), None)
+    
+    final_output = os.path.join(download_path, f"playable_{unique_id}.mp4")
 
-        final_output = os.path.join(download_path, f"playable_{unique_id}.mp4")
-
+    # CASE 1: ENCRYPTED STREAM (Manual key provided) -> Decrypt both tracks, then stitch
+    if manual_key and ":" in manual_key and os.path.exists(mp4decrypt_bin) and os.path.exists(ffmpeg_bin):
         if callback: callback.onProgress("Decrypting tracks with mp4decrypt...")
-        dec_video = video_file.replace("raw_", "dec_")
+        dec_video = video_file.replace("dl_", "dec_") if video_file else None
+        dec_audio = audio_file.replace("dl_", "dec_") if audio_file else None
+        
         try:
-            subprocess.run([mp4decrypt_bin, "--key", manual_key.strip(), video_file, dec_video], check=True)
-        except Exception as e:
-            return f"Video decryption failed: {str(e)}"
-            
-        dec_audio = None
-        if audio_file:
-            dec_audio = audio_file.replace("raw_", "dec_")
-            try:
+            if video_file:
+                subprocess.run([mp4decrypt_bin, "--key", manual_key.strip(), video_file, dec_video], check=True)
+            if audio_file:
                 subprocess.run([mp4decrypt_bin, "--key", manual_key.strip(), audio_file, dec_audio], check=True)
-            except Exception:
-                dec_audio = None
+        except Exception as e:
+            return f"Decryption failed: {str(e)}"
 
-        if callback: callback.onProgress("Stitching audio and video with ffmpeg...")
+        if callback: callback.onProgress("Stitching audio & video with ffmpeg...")
         try:
-            if dec_audio and os.path.exists(dec_audio):
+            if dec_audio and os.path.exists(dec_audio) and dec_video and os.path.exists(dec_video):
                 cmd = [ffmpeg_bin, "-i", dec_video, "-i", dec_audio, "-c:v", "copy", "-c:a", "copy", final_output]
-            else:
+            elif dec_video and os.path.exists(dec_video):
                 cmd = [ffmpeg_bin, "-i", dec_video, "-c", "copy", final_output]
+            else:
+                return f"Error: Decrypted video file missing."
                 
             subprocess.run(cmd, check=True)
             
+            # Cleanup raw & temp decrypted files
             for f in downloaded_files:
                 if os.path.exists(f): os.remove(f)
-            if os.path.exists(dec_video): os.remove(dec_video)
+            if dec_video and os.path.exists(dec_video): os.remove(dec_video)
             if dec_audio and os.path.exists(dec_audio): os.remove(dec_audio)
             
             return f"Successfully decrypted, merged & saved!"
         except Exception as e:
             return f"Stitching failed: {str(e)}"
+
+    # CASE 2: UNENCRYPTED STREAM -> Manually stitch video & audio using ffmpeg directly in Python
+    else:
+        if callback: callback.onProgress("Merging video & audio with ffmpeg...")
+        try:
+            if video_file and audio_file and os.path.exists(ffmpeg_bin):
+                cmd = [ffmpeg_bin, "-i", video_file, "-i", audio_file, "-c:v", "copy", "-c:a", "copy", final_output]
+                subprocess.run(cmd, check=True)
+            elif video_file:
+                final_output = video_file.replace("dl_", "playable_")
+                os.rename(video_file, final_output)
+            
+            # Cleanup raw separate files
+            for f in downloaded_files:
+                if os.path.exists(f): os.remove(f)
+                
+            return f"Successfully merged & saved to Download/DRM_Downloads!"
+        except Exception as e:
+            return f"Merging failed: {str(e)}"
