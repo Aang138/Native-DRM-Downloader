@@ -49,13 +49,12 @@ def get_stream_options(url):
         options.append(f"Error parsing stream: {str(e)} | ID:best")
     return options
 
-def download_selected_stream(url, format_id, manual_key, native_lib_dir, code_cache_dir, callback=None):
+def download_selected_stream(url, format_id, manual_key, native_lib_dir, callback=None):
     download_path = "/storage/emulated/0/Download/DRM_Downloads"
     os.makedirs(download_path, exist_ok=True)
 
-    # Point directly to libffmpeg.so inside nativeLibraryDir where execution is permitted by Android
     ffmpeg_bin = os.path.join(native_lib_dir, "libffmpeg.so")
-    mp4decrypt_bin = os.path.join(code_cache_dir, "mp4decrypt")
+    mp4decrypt_bin = os.path.join(native_lib_dir, "libmp4decrypt.so")
 
     def my_hook(d):
         if d['status'] == 'downloading':

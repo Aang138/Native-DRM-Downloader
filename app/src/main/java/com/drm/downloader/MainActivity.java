@@ -10,9 +10,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -31,8 +28,6 @@ public class MainActivity extends AppCompatActivity {
         btnDownload = findViewById(R.id.btnDownload);
         statusText = findViewById(R.id.statusText);
         speedText = findViewById(R.id.speedText);
-
-        extractMp4Decrypt();
 
         new Thread(() -> {
             try {
@@ -67,7 +62,6 @@ public class MainActivity extends AppCompatActivity {
                         optionsArray[i] = pyList.get(i).toString();
                     }
 
-Lengthy UI thread callback optimization...
                     runOnUiThread(() -> {
                         btnDownload.setEnabled(true);
                         statusText.setText("Select resolution");
@@ -82,21 +76,6 @@ Lengthy UI thread callback optimization...
                 }
             }).start();
         });
-    }
-
-    private void extractMp4Decrypt() {
-        File outFile = new File(getCodeCacheDir(), "mp4decrypt");
-        try (InputStream in = getAssets().open("mp4decrypt");
-             FileOutputStream out = new FileOutputStream(outFile)) {
-            byte[] buffer = new byte[1024];
-            int read;
-            while ((read = in.read(buffer)) != -1) {
-                out.write(buffer, 0, read);
-            }
-            outFile.setExecutable(true, false);
-        } catch (Exception e) {
-            // Optional if missing
-        }
     }
 
     private void showResolutionSelector(String url, String[] options) {
@@ -161,9 +140,7 @@ Lengthy UI thread callback optimization...
             }
         }
 
-        // Pass nativeLibraryDir where jniLibs binaries reside with proper execution rights
         String nativeLibDir = getApplicationInfo().nativeLibraryDir;
-        String codeCacheDir = getCodeCacheDir().getAbsolutePath();
 
         new Thread(() -> {
             try {
@@ -171,7 +148,7 @@ Lengthy UI thread callback optimization...
                 PyObject module = py.getModule("drm_manager");
                 
                 ProgressCallback callback = new ProgressCallback();
-                PyObject result = module.callAttr("download_selected_stream", url, formatId, manualKey, nativeLibDir, codeCacheDir, callback);
+                PyObject result = module.callAttr("download_selected_stream", url, formatId, manualKey, nativeLibDir, callback);
                 String msg = result != null ? result.toString() : "Completed.";
 
                 runOnUiThread(() -> {
