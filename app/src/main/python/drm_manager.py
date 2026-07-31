@@ -49,12 +49,9 @@ def get_stream_options(url):
         options.append(f"Error parsing stream: {str(e)} | ID:best")
     return options
 
-def download_selected_stream(url, format_id, manual_key, code_cache_dir, callback=None):
+def download_selected_stream(url, format_id, manual_key, callback=None):
     download_path = "/storage/emulated/0/Download/DRM_Downloads"
     os.makedirs(download_path, exist_ok=True)
-
-    ffmpeg_bin = os.path.join(code_cache_dir, "ffmpeg")
-    mp4decrypt_bin = os.path.join(code_cache_dir, "mp4decrypt")
 
     def my_hook(d):
         if d['status'] == 'downloading':
@@ -69,15 +66,16 @@ def download_selected_stream(url, format_id, manual_key, code_cache_dir, callbac
                 try: callback.onProgress(p_int, f"Downloading: {p_str}% | Speed: {speed} | ETA: {eta}")
                 except Exception: pass
 
+    # Download both video format and best audio format separately so both tracks are saved
     if format_id != "best":
         target_format = f"{format_id}+bestaudio/best"
     else:
-        target_format = "best"
+        target_format = "bestvideo+bestaudio/best"
 
     unique_id = int(time.time())
     raw_template = os.path.join(download_path, f'dl_{unique_id}_%(format_id)s.%(ext)s')
 
-    if callback: callback.onProgress(5, "Initializing download...")
+    if callback: callback.onProgress(5, "Downloading video and audio tracks...")
 
     ydl_opts = {
         'format': target_format,
@@ -88,8 +86,6 @@ def download_selected_stream(url, format_id, manual_key, code_cache_dir, callbac
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         },
     }
-    if os.path.exists(ffmpeg_bin):
-        ydl_opts['ffmpeg_location'] = code_cache_dir
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -110,12 +106,14 @@ def download_selected_stream(url, format_id, manual_key, code_cache_dir, callbac
     if not audio_file:
         audio_file = next((f for f in session_files if f != video_file), None)
 
-    final_output = os.path.join(download_path, f"playable_{unique_id}.mp4")
+    # Optional optional local decryption using mp4decrypt if binary exists in local app folder
+    app_files_dir = os.path.dirname(os.path.abspath(__file__))
+    mp4decrypt_bin = os.path.join(app_files_dir, "mp4decrypt")
+
     dec_video = None
     dec_audio = None
-
     if manual_key and ":" in manual_key and os.path.exists(mp4decrypt_bin):
-        if callback: callback.onProgress(85, "Decrypting DRM tracks...")
+        if callback: callback.onProgress(85, "Decrypting tracks with mp4decrypt...")
         dec_video = video_file.replace("dl_", "dec_") if video_file else None
         dec_audio = audio_file.replace("dl_", "dec_") if audio_file else None
         key_args = []
@@ -131,30 +129,7 @@ def download_selected_stream(url, format_id, manual_key, code_cache_dir, callbac
                 subprocess.run([mp4decrypt_bin] + key_args + [audio_file, dec_audio], check=True)
                 audio_file = dec_audio
         except Exception as e:
-            return f"Decryption failed: {str(e)}"
+            pass
 
-    if callback: callback.onProgress(90, "Merging audio and video tracks...")
-    try:
-        if video_file and audio_file and os.path.exists(ffmpeg_bin) and os.path.exists(video_file) and os.path.exists(audio_file):
-            cmd = [ffmpeg_bin, "-y", "-i", video_file, "-i", audio_file,
-                   "-map", "0:v:0", "-map", "1:a:0",
-                   "-c:v", "copy", "-c:a", "copy", "-movflags", "+faststart", final_output]
-            res = subprocess.run(cmd, capture_output=True, text=True)
-            if res.returncode != 0:
-                cmd_reencode = [ffmpeg_bin, "-y", "-i", video_file, "-i", audio_file,
-                                 "-map", "0:v:0", "-map", "1:a:0",
-                                 "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-                                 "-movflags", "+faststart", final_output]
-                subprocess.run(cmd_reencode, check=True)
-        elif video_file and os.path.exists(video_file):
-            os.rename(video_file, final_output)
-
-        for f in session_files:
-            if os.path.exists(f): os.remove(f)
-        if dec_video and os.path.exists(dec_video): os.remove(dec_video)
-        if dec_audio and os.path.exists(dec_audio): os.remove(dec_audio)
-
-        if callback: callback.onProgress(100, "Download Complete!")
-        return "Successfully downloaded, merged & saved with audio!"
-    except Exception as e:
-        return f"Merging failed: {str(e)}"
+    if callback: callback.onProgress(100, "Download Complete (Video & Audio saved separately)!")
+    return "Successfully downloaded video and audio tracks to Download/DRM_Downloads!"

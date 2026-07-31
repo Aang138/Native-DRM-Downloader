@@ -11,11 +11,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -36,8 +31,6 @@ public class MainActivity extends AppCompatActivity {
         statusText = findViewById(R.id.statusText);
         speedText = findViewById(R.id.speedText);
         progressBar = findViewById(R.id.progressBar);
-
-        prepareBinaries();
 
         new Thread(() -> {
             try {
@@ -89,26 +82,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void prepareBinaries() {
-        File nativeDir = new File(getApplicationInfo().nativeLibraryDir);
-        File codeCache = getCodeCacheDir();
-        copyAndRename(new File(nativeDir, "libffmpeg.so"), new File(codeCache, "ffmpeg"));
-        copyAndRename(new File(nativeDir, "libmp4decrypt.so"), new File(codeCache, "mp4decrypt"));
-    }
-
-    private void copyAndRename(File src, File dst) {
-        if (!src.exists()) return;
-        try (InputStream in = new FileInputStream(src);
-             OutputStream out = new FileOutputStream(dst)) {
-            byte[] buf = new byte[4096];
-            int len;
-            while ((len = in.read(buf)) > 0) {
-                out.write(buf, 0, len);
-            }
-            dst.setExecutable(true, false);
-        } catch (Exception e) {}
-    }
-
     private void showResolutionSelector(String url, String[] options) {
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
         builder.setTitle("Select Quality & Size");
@@ -128,10 +101,10 @@ public class MainActivity extends AppCompatActivity {
 
                     runOnUiThread(() -> {
                         if (isEncrypted) {
-                            statusText.setText("Encrypted stream detected");
+                            statusText.setText("🔒 Encrypted DRM Stream Detected");
                             showKeyInputDialog(url, selectedFormatId);
                         } else {
-                            statusText.setText("Unencrypted stream - Downloading...");
+                            statusText.setText("🔓 Unencrypted Stream - Downloading...");
                             startDownloadProcess(url, selectedFormatId, "");
                         }
                     });
@@ -147,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
     private void showKeyInputDialog(String url, String formatId) {
         AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
         builder.setTitle("Enter DRM Key");
-        builder.setMessage("This stream is encrypted. Paste key as: KID:KEY");
+        builder.setMessage("Encrypted stream. Paste key as: KID:KEY");
 
         final EditText input = new EditText(MainActivity.this);
         input.setHint("kid1:key1");
@@ -155,6 +128,7 @@ public class MainActivity extends AppCompatActivity {
 
         builder.setPositiveButton("Download", (dialog, which) -> {
             String manualKey = input.getText().toString().trim();
+            statusText.setText("🔒 Decrypting & Downloading...");
             startDownloadProcess(url, formatId, manualKey);
         });
         builder.setNegativeButton("Cancel", (dialog, which) -> statusText.setText("Ready"));
@@ -162,7 +136,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startDownloadProcess(String url, String formatId, String manualKey) {
-        statusText.setText("Downloading & processing...");
         btnDownload.setEnabled(false);
 
         class ProgressCallback {
@@ -174,21 +147,19 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        String codeCachePath = getCodeCacheDir().getAbsolutePath();
-
         new Thread(() -> {
             try {
                 Python py = Python.getInstance();
                 PyObject module = py.getModule("drm_manager");
                 
                 ProgressCallback callback = new ProgressCallback();
-                PyObject result = module.callAttr("download_selected_stream", url, formatId, manualKey, codeCachePath, callback);
+                PyObject result = module.callAttr("download_selected_stream", url, formatId, manualKey, callback);
                 String msg = result != null ? result.toString() : "Completed.";
 
                 runOnUiThread(() -> {
                     btnDownload.setEnabled(true);
                     if (msg.contains("Successfully")) {
-                        statusText.setText("Download Successful!");
+                        statusText.setText("Download Successful! (Video & Audio Saved)");
                         speedText.setTextColor(0xFF00E676);
                     } else {
                         statusText.setText("Download Failed!");
@@ -201,7 +172,7 @@ public class MainActivity extends AppCompatActivity {
                     btnDownload.setEnabled(true);
                     statusText.setText("Download Failed!");
                     speedText.setTextColor(0xFFFF1744);
-                    Toast.makeText(MainActivity.this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    Toast.makeText(MainActivity.this, "Error: " + e.getMessage(), Toast.HINT_HEIGHT_DEFAULT).show();
                 });
             }
         }).start();
