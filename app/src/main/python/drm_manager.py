@@ -1,22 +1,31 @@
 import os
 import time
-import urllib.request
 import requests
 import subprocess
 import yt_dlp
 
 def ensure_binaries(app_files_dir, callback=None):
     ffmpeg_bin = os.path.join(app_files_dir, "ffmpeg")
+    log_path = os.path.join("/storage/emulated/0/Download/DRM_Downloads", "debug_log.txt")
+    
     if not os.path.exists(ffmpeg_bin) or os.path.getsize(ffmpeg_bin) < 1000000:
         try:
-            if callback: callback.onProgress("Downloading required ffmpeg component...")
+            if callback: callback.onProgress("Downloading ffmpeg component...")
             url = "https://github.com/eugeneware/ffmpeg-static/releases/download/b4.4/ffmpeg-linux-arm64"
-            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'})
-            with urllib.request.urlopen(req, timeout=60) as response, open(ffmpeg_bin, 'wb') as out_file:
-                out_file.write(response.read())
-            os.chmod(ffmpeg_bin, 0o755)
+            headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            
+            # Use requests with allow_redirects to properly follow GitHub -> AWS redirects
+            response = requests.get(url, headers=headers, allow_redirects=True, timeout=60)
+            if response.status_code == 200:
+                with open(ffmpeg_bin, 'wb') as f:
+                    f.write(response.content)
+                os.chmod(ffmpeg_bin, 0o755)
+            else:
+                with open(log_path, "a") as logf:
+                    logf.write(f"FFmpeg download failed with status code: {response.status_code}\n")
         except Exception as e:
-            if callback: callback.onProgress(f"FFmpeg setup error: {str(e)}")
+            with open(log_path, "a") as logf:
+                logf.write(f"FFmpeg download exception: {str(e)}\n")
 
 def is_encrypted_stream(url):
     try:
