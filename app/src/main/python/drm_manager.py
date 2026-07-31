@@ -108,7 +108,7 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
     
     final_output = os.path.join(download_path, f"playable_{unique_id}.mp4")
 
-    # CASE 1: ENCRYPTED STREAM (Manual key provided) -> Decrypt both tracks, then stitch
+    # CASE 1: ENCRYPTED STREAM (Manual key provided)
     if manual_key and ":" in manual_key and os.path.exists(mp4decrypt_bin) and os.path.exists(ffmpeg_bin):
         if callback: callback.onProgress("Decrypting tracks with mp4decrypt...")
         dec_video = video_file.replace("dl_", "dec_") if video_file else None
@@ -133,7 +133,6 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
                 
             subprocess.run(cmd, check=True)
             
-            # Cleanup raw & temp decrypted files
             for f in downloaded_files:
                 if os.path.exists(f): os.remove(f)
             if dec_video and os.path.exists(dec_video): os.remove(dec_video)
@@ -143,7 +142,7 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
         except Exception as e:
             return f"Stitching failed: {str(e)}"
 
-    # CASE 2: UNENCRYPTED STREAM -> Manually stitch video & audio using ffmpeg directly in Python
+    # CASE 2: UNENCRYPTED STREAM -> Explicit Python-side ffmpeg merging
     else:
         if callback: callback.onProgress("Merging video & audio with ffmpeg...")
         try:
@@ -154,10 +153,9 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
                 final_output = video_file.replace("dl_", "playable_")
                 os.rename(video_file, final_output)
             
-            # Cleanup raw separate files
             for f in downloaded_files:
                 if os.path.exists(f): os.remove(f)
                 
-            return f"Successfully merged & saved to Download/DRM_Downloads!"
+            return f"Successfully merged & saved!"
         except Exception as e:
             return f"Merging failed: {str(e)}"
