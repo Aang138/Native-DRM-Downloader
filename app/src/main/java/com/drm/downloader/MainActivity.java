@@ -172,7 +172,6 @@ public class MainActivity extends AppCompatActivity {
                     btnDownload.setEnabled(true);
                     statusText.setText("Download Failed!");
                     speedText.setTextColor(0xFFFF1744);
-                    Toast.makeText(MainActivity.this, "Error: " + e.getMessage(), Toast.HINT_HEIGHT_DEFAULT).show();
                 });
             }
         }).start();
