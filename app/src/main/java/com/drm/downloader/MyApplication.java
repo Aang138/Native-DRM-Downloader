@@ -2,22 +2,19 @@ package com.drm.downloader;
 
 import android.app.Application;
 import android.util.Log;
-
-import com.yausername.youtubedl_android.YoutubeDL;
-import com.yausername.youtubedl_android.YoutubeDLException;
-import com.yausername.ffmpeg.FFmpeg;
-import com.yausername.aria2c.Aria2c;
+import com.chaquo.python.Python;
+import com.chaquo.python.android.AndroidPlatform;
 
 public class MyApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
         try {
-            YoutubeDL.getInstance().init(this);
-            FFmpeg.getInstance().init(this);
-            Aria2c.getInstance().init(this);
-        } catch (YoutubeDLException e) {
-            Log.e("MyApplication", "Failed to initialize downloader components", e);
+            if (!Python.isStarted()) {
+                Python.start(new AndroidPlatform(this));
+            }
+        } catch (Exception e) {
+            Log.e("MyApplication", "Python initialization failed", e);
         }
     }
 }
