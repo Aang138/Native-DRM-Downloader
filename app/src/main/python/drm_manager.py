@@ -1,10 +1,11 @@
 import os
 import yt_dlp
-from curl_cffi import requests
 
 def get_stream_options(url):
     ydl_opts = {
-        'extractor_args': {'generic': {'impersonate': 'chrome'}},
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        },
         'socket_timeout': 30,
         'quiet': True,
     }
@@ -53,11 +54,13 @@ def download_selected_stream(url, format_id, callback=None):
         'format': format_id,
         'outtmpl': os.path.join(download_path, '%(title)s.%(ext)s'),
         'progress_hooks': [my_hook],
-        'extractor_args': {'generic': {'impersonate': 'chrome'}},
+        'http_headers': {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        },
     }
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
-        return "Saved to Phone Storage -> Download/DRM_Downloads"
+        return f"Saved to Phone Storage -> Download/DRM_Downloads"
     except Exception as e:
         return f"Download failed: {str(e)}"
