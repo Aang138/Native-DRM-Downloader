@@ -23,11 +23,6 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Setup Gradle 8.5
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: '8.5'
-
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
 
@@ -40,10 +35,17 @@ jobs:
       run: |
         echo "sdk.dir=$ANDROID_HOME" > local.properties
 
+    - name: Download and Setup Gradle 8.5 Manually
+      run: |
+        wget -q https://services.gradle.org/distributions/gradle-8.5-bin.zip
+        unzip -q gradle-8.5-bin.zip
+        echo "$PWD/gradle-8.5/bin" >> $GITHUB_PATH
+
     - name: Build APK with Gradle 8.5
       run: |
-        if [ -f ./gradlew ]; then chmod +x gradlew; fi
-        gradle assembleDebug --stacktrace || ./gradlew assembleDebug --stacktrace
+        gradle wrapper --gradle-version 8.5 --distribution-type bin
+        chmod +x gradlew
+        ./gradlew assembleDebug --stacktrace
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
