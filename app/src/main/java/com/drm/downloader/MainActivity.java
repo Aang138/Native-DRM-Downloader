@@ -32,7 +32,6 @@ public class MainActivity extends AppCompatActivity {
         statusText = findViewById(R.id.statusText);
         speedText = findViewById(R.id.speedText);
 
-        // Extract native binaries from assets on first launch
         extractAssetBinaries();
 
         new Thread(() -> {
@@ -86,23 +85,19 @@ public class MainActivity extends AppCompatActivity {
 
     private void extractAssetBinaries() {
         String[] binaries = {"ffmpeg", "mp4decrypt"};
-        File filesDir = getFilesDir();
+        File codeCacheDir = getCodeCacheDir(); // code_cache allows execution on Android
         for (String binName : binaries) {
-            File outFile = new File(filesDir, binName);
-            if (!outFile.exists()) {
-                try (InputStream in = getAssets().open(binName);
-                     FileOutputStream out = new FileOutputStream(outFile)) {
-                    byte[] buffer = new byte[1024];
-                    int read;
-                    while ((read = in.read(buffer)) != -1) {
-                        out.write(buffer, 0, read);
-                    }
-                    outFile.setExecutable(true, false);
-                } catch (Exception e) {
-                    // Asset might be missing or handled elsewhere
+            File outFile = new File(codeCacheDir, binName);
+            try (InputStream in = getAssets().open(binName);
+                 FileOutputStream out = new FileOutputStream(outFile)) {
+                byte[] buffer = new byte[1024];
+                int read;
+                while ((read = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, read);
                 }
-            } else {
                 outFile.setExecutable(true, false);
+            } catch (Exception e) {
+                // Ignore if asset missing
             }
         }
     }
@@ -169,7 +164,8 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        String filesDir = getFilesDir().getAbsolutePath();
+        // Pass code_cache directory path where execution is permitted
+        String codeCachePath = getCodeCacheDir().getAbsolutePath();
 
         new Thread(() -> {
             try {
@@ -177,7 +173,7 @@ public class MainActivity extends AppCompatActivity {
                 PyObject module = py.getModule("drm_manager");
                 
                 ProgressCallback callback = new ProgressCallback();
-                PyObject result = module.callAttr("download_selected_stream", url, formatId, manualKey, filesDir, callback);
+                PyObject result = module.callAttr("download_selected_stream", url, formatId, manualKey, codeCachePath, callback);
                 String msg = result != null ? result.toString() : "Completed.";
 
                 runOnUiThread(() -> {

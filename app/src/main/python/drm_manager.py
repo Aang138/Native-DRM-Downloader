@@ -4,11 +4,9 @@ import requests
 import subprocess
 import yt_dlp
 
-def ensure_binaries(app_files_dir):
-    ffmpeg_bin = os.path.join(app_files_dir, "ffmpeg")
-    mp4decrypt_bin = os.path.join(app_files_dir, "mp4decrypt")
-    
-    # Safely attempt to set permissions without crashing if restricted by Android
+def ensure_binaries(code_cache_dir):
+    ffmpeg_bin = os.path.join(code_cache_dir, "ffmpeg")
+    mp4decrypt_bin = os.path.join(code_cache_dir, "mp4decrypt")
     for bin_path in [ffmpeg_bin, mp4decrypt_bin]:
         if os.path.exists(bin_path):
             try:
@@ -61,14 +59,14 @@ def get_stream_options(url):
         options.append(f"Error parsing stream: {str(e)} | ID:best")
     return options
 
-def download_selected_stream(url, format_id, manual_key, app_files_dir, callback=None):
+def download_selected_stream(url, format_id, manual_key, code_cache_dir, callback=None):
     download_path = "/storage/emulated/0/Download/DRM_Downloads"
     os.makedirs(download_path, exist_ok=True)
 
-    ensure_binaries(app_files_dir)
+    ensure_binaries(code_cache_dir)
 
-    mp4decrypt_bin = os.path.join(app_files_dir, "mp4decrypt")
-    ffmpeg_bin = os.path.join(app_files_dir, "ffmpeg")
+    mp4decrypt_bin = os.path.join(code_cache_dir, "mp4decrypt")
+    ffmpeg_bin = os.path.join(code_cache_dir, "ffmpeg")
 
     def my_hook(d):
         if d['status'] == 'downloading':
@@ -99,7 +97,7 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
         },
     }
     if os.path.exists(ffmpeg_bin):
-        ydl_opts['ffmpeg_location'] = app_files_dir
+        ydl_opts['ffmpeg_location'] = code_cache_dir
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -127,7 +125,7 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
     if manual_key and ":" in manual_key and os.path.exists(mp4decrypt_bin):
         if callback: callback.onProgress("Decrypting tracks...")
         dec_video = video_file.replace("dl_", "dec_") if video_file else None
-        dec_audio = audio_file.replace("dl_", "dec_") if audio_file else None
+        dec_audio = audio_file.replace("dl_", "dec_") if video_file else None
         key_args = []
         for pair in manual_key.strip().split(","):
             pair = pair.strip()
