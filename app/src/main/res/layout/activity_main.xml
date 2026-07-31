@@ -16,7 +16,7 @@
         android:textColor="#FF0055"
         android:gravity="center"
         android:layout_marginTop="30dp"
-        android:layout_marginBottom="40dp"/>
+        android:layout_marginBottom="30dp"/>
 
     <!-- Glassmorphism-style Container Card -->
     <LinearLayout
@@ -37,6 +37,26 @@
             android:background="#2C2C2C"
             android:padding="16dp"
             android:textSize="14sp"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Status Text -->
+        <TextView
+            android:id="@+id/statusText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Initializing Python..."
+            android:textColor="#AAAAAA"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Speed / Progress Text -->
+        <TextView
+            android:id="@+id/speedText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Idle"
+            android:textColor="#777777"
+            android:textSize="12sp"
             android:layout_marginBottom="20dp"/>
 
         <!-- Action Button -->
