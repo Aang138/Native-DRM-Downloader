@@ -5,14 +5,16 @@ import subprocess
 import yt_dlp
 
 def ensure_binaries(app_files_dir):
-    # Ensure binary file permissions are fully executable in the private files directory
     ffmpeg_bin = os.path.join(app_files_dir, "ffmpeg")
     mp4decrypt_bin = os.path.join(app_files_dir, "mp4decrypt")
     
-    if os.path.exists(ffmpeg_bin):
-        os.chmod(ffmpeg_bin, 0o755)
-    if os.path.exists(mp4decrypt_bin):
-        os.chmod(mp4decrypt_bin, 0o755)
+    # Safely attempt to set permissions without crashing if restricted by Android
+    for bin_path in [ffmpeg_bin, mp4decrypt_bin]:
+        if os.path.exists(bin_path):
+            try:
+                os.chmod(bin_path, 0o755)
+            except Exception:
+                pass
 
 def is_encrypted_stream(url):
     try:
