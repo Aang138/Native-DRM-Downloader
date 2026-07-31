@@ -40,6 +40,13 @@ def download_selected_stream(url, format_id, app_files_dir, callback=None):
     
     ffmpeg_bin = os.path.join(app_files_dir, "ffmpeg")
     
+    # Grant execution permissions to ffmpeg binary to prevent silent merge failure on Android
+    if os.path.exists(ffmpeg_bin):
+        try:
+            os.chmod(ffmpeg_bin, 0o755)
+        except Exception:
+            pass
+
     def my_hook(d):
         if d['status'] == 'downloading':
             p = d.get('_percent_str', '0%').strip()
@@ -54,7 +61,7 @@ def download_selected_stream(url, format_id, app_files_dir, callback=None):
         elif d['status'] == 'finished':
             if callback:
                 try:
-                    callback.onProgress("Stitching audio & video tracks...")
+                    callback.onProgress("Merging video & audio tracks...")
                 except Exception:
                     pass
 
@@ -80,7 +87,6 @@ def download_selected_stream(url, format_id, app_files_dir, callback=None):
         },
     }
     
-    # Properly pass FFmpeg binary location to yt-dlp postprocessor
     if os.path.exists(ffmpeg_bin):
         ydl_opts['ffmpeg_location'] = ffmpeg_bin
 
@@ -90,4 +96,4 @@ def download_selected_stream(url, format_id, app_files_dir, callback=None):
     except Exception as e:
         return f"Download failed: {str(e)}"
 
-    return f"Successfully saved and stitched to -> Download/DRM_Downloads"
+    return f"Successfully saved and merged to -> Download/DRM_Downloads"
