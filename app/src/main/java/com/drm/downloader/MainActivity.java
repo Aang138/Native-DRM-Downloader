@@ -30,7 +30,6 @@ public class MainActivity extends AppCompatActivity {
         statusText = findViewById(R.id.statusText);
         speedText = findViewById(R.id.speedText);
 
-        // Initialize Python in background
         new Thread(() -> {
             try {
                 if (!Python.isStarted()) {
@@ -44,7 +43,6 @@ public class MainActivity extends AppCompatActivity {
             }
         }).start();
 
-        // Handle button click to fetch streams
         btnDownload.setOnClickListener(v -> {
             String url = urlInput.getText().toString().trim();
             if (url.isEmpty()) {
@@ -53,7 +51,7 @@ public class MainActivity extends AppCompatActivity {
             }
 
             statusText.setText("Analyzing stream & file sizes...");
-            speedText.setText("Parsing");
+            speedText.setText("Parsing...");
             btnDownload.setEnabled(false);
 
             new Thread(() -> {
@@ -94,7 +92,6 @@ public class MainActivity extends AppCompatActivity {
         
         builder.setItems(options, (dialog, which) -> {
             String selectedOption = options[which];
-            // Extract format ID from selection string (e.g., "... | ID:137")
             if (selectedOption.contains("ID:")) {
                 selectedFormatId = selectedOption.substring(selectedOption.indexOf("ID:") + 3);
             }
@@ -112,20 +109,28 @@ public class MainActivity extends AppCompatActivity {
 
     private void startDownloadProcess(String url, String formatId) {
         statusText.setText("Downloading & decrypting fragments...");
-        speedText.setText("Aria2c active");
+        speedText.setText("Connecting...");
         btnDownload.setEnabled(false);
+
+        class ProgressCallback {
+            public void onProgress(String progressMessage) {
+                runOnUiThread(() -> speedText.setText(progressMessage));
+            }
+        }
 
         new Thread(() -> {
             try {
                 Python py = Python.getInstance();
                 PyObject module = py.getModule("drm_manager");
-                PyObject result = module.callAttr("download_selected_stream", url, formatId);
+                
+                ProgressCallback callback = new ProgressCallback();
+                PyObject result = module.callAttr("download_selected_stream", url, formatId, callback);
                 String msg = result != null ? result.toString() : "Download completed.";
 
                 runOnUiThread(() -> {
                     btnDownload.setEnabled(true);
                     statusText.setText("Download Complete");
-                    speedText.setText("Done");
+                    speedText.setText("Saved in Download/DRM_Downloads");
                     Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
                 });
 
