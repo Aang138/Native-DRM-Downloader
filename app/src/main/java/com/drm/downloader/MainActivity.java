@@ -15,6 +15,10 @@ import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -40,7 +44,8 @@ public class MainActivity extends AppCompatActivity {
         progressBar = findViewById(R.id.progressBar);
         videoView = findViewById(R.id.videoView);
 
-        // Setup native video player controller
+        prepareBinaries();
+
         MediaController mediaController = new MediaController(this);
         mediaController.setAnchorView(videoView);
         videoView.setMediaController(mediaController);
@@ -103,6 +108,28 @@ public class MainActivity extends AppCompatActivity {
                 }
             }).start();
         });
+    }
+
+    private void prepareBinaries() {
+        File nativeDir = new File(getApplicationInfo().nativeLibraryDir);
+        File codeCache = getCodeCacheDir();
+        copyAndRename(new File(nativeDir, "libffmpeg.so"), new File(codeCache, "ffmpeg"));
+        copyAndRename(new File(nativeDir, "libmp4decrypt.so"), new File(codeCache, "mp4decrypt"));
+    }
+
+    private void copyAndRename(File src, File dst) {
+        if (!src.exists()) return;
+        try (InputStream in = new FileInputStream(src);
+             OutputStream out = new FileOutputStream(dst)) {
+            byte[] buf = new byte[4096];
+            int len;
+            while ((len = in.read(buf)) > 0) {
+                out.write(buf, 0, len);
+            }
+            dst.setExecutable(true, false);
+        } catch (Exception e) {
+            // ignore
+        }
     }
 
     private void showResolutionSelector(String url, String[] options) {
@@ -170,7 +197,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        String nativeLibDir = getApplicationInfo().nativeLibraryDir;
+        String codeCachePath = getCodeCacheDir().getAbsolutePath();
 
         new Thread(() -> {
             try {
@@ -178,7 +205,7 @@ public class MainActivity extends AppCompatActivity {
                 PyObject module = py.getModule("drm_manager");
                 
                 ProgressCallback callback = new ProgressCallback();
-                PyObject result = module.callAttr("download_selected_stream", url, formatId, manualKey, nativeLibDir, callback);
+                PyObject result = module.callAttr("download_selected_stream", url, formatId, manualKey, codeCachePath, callback);
                 PyObject filePathObj = module.get("last_saved_file");
                 if (filePathObj != null) {
                     lastDownloadedFile = filePathObj.toString();
@@ -189,10 +216,10 @@ public class MainActivity extends AppCompatActivity {
                     btnDownload.setEnabled(true);
                     if (msg.contains("Successfully")) {
                         statusText.setText("Download Successful!");
-                        speedText.setTextColor(0xFF00E676); // Green
+                        speedText.setTextColor(0xFF00E676);
                     } else {
                         statusText.setText("Download Failed!");
-                        speedText.setTextColor(0xFFFF1744); // Red
+                        speedText.setTextColor(0xFFFF1744);
                     }
                     Toast.makeText(MainActivity.this, msg, Toast.LENGTH_LONG).show();
                 });

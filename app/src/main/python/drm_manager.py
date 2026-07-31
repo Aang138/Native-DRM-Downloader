@@ -51,13 +51,13 @@ def get_stream_options(url):
         options.append(f"Error parsing stream: {str(e)} | ID:best")
     return options
 
-def download_selected_stream(url, format_id, manual_key, native_lib_dir, callback=None):
+def download_selected_stream(url, format_id, manual_key, code_cache_dir, callback=None):
     global last_saved_file
     download_path = "/storage/emulated/0/Download/DRM_Downloads"
     os.makedirs(download_path, exist_ok=True)
 
-    ffmpeg_bin = os.path.join(native_lib_dir, "libffmpeg.so")
-    mp4decrypt_bin = os.path.join(native_lib_dir, "libmp4decrypt.so")
+    ffmpeg_bin = os.path.join(code_cache_dir, "ffmpeg")
+    mp4decrypt_bin = os.path.join(code_cache_dir, "mp4decrypt")
 
     def my_hook(d):
         if d['status'] == 'downloading':
@@ -92,7 +92,7 @@ def download_selected_stream(url, format_id, manual_key, native_lib_dir, callbac
         },
     }
     if os.path.exists(ffmpeg_bin):
-        ydl_opts['ffmpeg_location'] = native_lib_dir
+        ydl_opts['ffmpeg_location'] = code_cache_dir
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -120,7 +120,7 @@ def download_selected_stream(url, format_id, manual_key, native_lib_dir, callbac
     if manual_key and ":" in manual_key and os.path.exists(mp4decrypt_bin):
         if callback: callback.onProgress(85, "Decrypting DRM tracks...")
         dec_video = video_file.replace("dl_", "dec_") if video_file else None
-        dec_audio = audio_file.replace("dl_", "dec_") if audio_file else None
+        dec_audio = audio_file.replace("dl_", "dec_") if video_file else None
         key_args = []
         for pair in manual_key.strip().split(","):
             pair = pair.strip()
