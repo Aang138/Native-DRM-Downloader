@@ -4,8 +4,6 @@ import requests
 import subprocess
 import yt_dlp
 
-last_saved_file = ""
-
 def is_encrypted_stream(url):
     try:
         headers = {
@@ -52,7 +50,6 @@ def get_stream_options(url):
     return options
 
 def download_selected_stream(url, format_id, manual_key, code_cache_dir, callback=None):
-    global last_saved_file
     download_path = "/storage/emulated/0/Download/DRM_Downloads"
     os.makedirs(download_path, exist_ok=True)
 
@@ -120,7 +117,7 @@ def download_selected_stream(url, format_id, manual_key, code_cache_dir, callbac
     if manual_key and ":" in manual_key and os.path.exists(mp4decrypt_bin):
         if callback: callback.onProgress(85, "Decrypting DRM tracks...")
         dec_video = video_file.replace("dl_", "dec_") if video_file else None
-        dec_audio = audio_file.replace("dl_", "dec_") if video_file else None
+        dec_audio = audio_file.replace("dl_", "dec_") if audio_file else None
         key_args = []
         for pair in manual_key.strip().split(","):
             pair = pair.strip()
@@ -157,7 +154,6 @@ def download_selected_stream(url, format_id, manual_key, code_cache_dir, callbac
         if dec_video and os.path.exists(dec_video): os.remove(dec_video)
         if dec_audio and os.path.exists(dec_audio): os.remove(dec_audio)
 
-        last_saved_file = final_output
         if callback: callback.onProgress(100, "Download Complete!")
         return "Successfully downloaded, merged & saved with audio!"
     except Exception as e:
