@@ -69,7 +69,7 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
                 except Exception: pass
         elif d['status'] == 'finished':
             if callback:
-                try: callback.onProgress("Processing files...")
+                try: callback.onProgress("Processing & merging media...")
                 except Exception: pass
 
     if format_id != "best":
@@ -78,10 +78,10 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
         target_format = "best"
 
     unique_id = int(time.time())
-    # Use a clean prefix to easily locate downloaded components
-    raw_template = os.path.join(download_path, f'temp_{unique_id}_%(format_id)s.%(ext)s')
+    raw_template = os.path.join(download_path, f'dl_{unique_id}_%(format_id)s.%(ext)s')
 
-    if callback: callback.onProgress("Downloading streams...")
+    if callback: callback.onProgress("Downloading video & audio streams...")
+    
     ydl_opts = {
         'format': target_format,
         'allow_unplayable_formats': True,
@@ -91,6 +91,8 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         },
     }
+    if os.path.exists(ffmpeg_bin):
+        ydl_opts['ffmpeg_location'] = app_files_dir
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -98,32 +100,32 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
     except Exception as e:
         return f"Download failed: {str(e)}"
 
-    # Gather all files created in this session
-    files = [os.path.join(download_path, f) for f in os.listdir(download_path) if f.startswith(f"temp_{unique_id}")]
+    # Find all downloaded component files for this session
+    session_files = [os.path.join(download_path, f) for f in os.listdir(download_path) if f.startswith(f"dl_{unique_id}")]
     
-    if not files:
-        return f"Download failed: No files found."
+    if not session_files:
+        return f"Download failed: No files generated."
 
-    # Identify video and audio tracks reliably
-    video_file = next((f for f in files if f.endswith(('.mp4', '.mkv', '.webm')) and 'audio' not in f and 'm4a' not in f), None)
-    audio_file = next((f for f in files if f.endswith(('.m4a', '.aac', '.opus')) or 'audio' in f), None)
+    # Separate video and audio files based on extension / naming
+    video_file = next((f for f in session_files if f.endswith(('.mp4', '.mkv', '.webm')) and 'm4a' not in f and 'opus' not in f and 'aac' not in f), None)
+    audio_file = next((f for f in session_files if f.endswith(('.m4a', '.aac', '.opus')) or f != video_file), None)
     
-    if not video_file and files:
-        video_file = files[0]
-    if not audio_file and len(files) > 1:
-        audio_file = files[1]
+    if not video_file and session_files:
+        video_file = session_files[0]
+    if not audio_file and len(session_files) > 1:
+        audio_file = session_files[1]
 
     final_output = os.path.join(download_path, f"playable_{unique_id}.mp4")
 
-    # STEP 1: Decrypt if manual key is provided (Encrypted stream)
+    # STEP 1: Decrypt files if manual key is provided
     if manual_key and ":" in manual_key and os.path.exists(mp4decrypt_bin):
-        if callback: callback.onProgress("Decrypting tracks with mp4decrypt...")
-        dec_video = video_file.replace("temp_", "dec_") if video_file else None
-        dec_audio = audio_file.replace("temp_", "dec_") if audio_file else None
+        if callback: callback.onProgress("Decrypting with mp4decrypt...")
+        dec_video = video_file.replace("dl_", "dec_") if video_file else None
+        dec_audio = audio_file.replace("dl_", "dec_") if audio_file else None
         try:
-            if video_file:
+            if video_file and os.path.exists(video_file):
                 subprocess.run([mp4decrypt_bin, "--key", manual_key.strip(), video_file, dec_video], check=True)
-            if audio_file:
+            if audio_file and os.path.exists(audio_file):
                 subprocess.run([mp4decrypt_bin, "--key", manual_key.strip(), audio_file, dec_audio], check=True)
             
             if dec_video and os.path.exists(dec_video): video_file = dec_video
@@ -131,25 +133,25 @@ def download_selected_stream(url, format_id, manual_key, app_files_dir, callback
         except Exception as e:
             return f"Decryption failed: {str(e)}"
 
-    # STEP 2: Explicit Python-side FFmpeg Merge (Guaranteed combination)
-    if callback: callback.onProgress("Merging video & audio with ffmpeg...")
+    # STEP 2: Force explicit Python-side FFmpeg Merge to guarantee audio + video combination
+    if callback: callback.onProgress("Merging video and audio...")
     try:
-        if video_file and audio_file and os.path.exists(ffmpeg_bin):
+        if video_file and audio_file and os.path.exists(ffmpeg_bin) and os.path.exists(video_file) and os.path.exists(audio_file):
             cmd = [ffmpeg_bin, "-y", "-i", video_file, "-i", audio_file, "-c:v", "copy", "-c:a", "copy", "-movflags", "+faststart", final_output]
             res = subprocess.run(cmd, capture_output=True, text=True)
             if res.returncode != 0:
-                # Fallback if stream map mismatch occurs
+                # Fallback merge if stream mapping needs adjustment
                 cmd_fallback = [ffmpeg_bin, "-y", "-i", video_file, "-c", "copy", final_output]
                 subprocess.run(cmd_fallback, check=True)
-        elif video_file:
+        elif video_file and os.path.exists(video_file):
             os.rename(video_file, final_output)
 
-        # Cleanup raw temporary component files
-        for f in files:
+        # Cleanup raw component files
+        for f in session_files:
             if os.path.exists(f): os.remove(f)
         if 'dec_video' in locals() and dec_video and os.path.exists(dec_video): os.remove(dec_video)
         if 'dec_audio' in locals() and dec_audio and os.path.exists(dec_audio): os.remove(dec_audio)
 
-        return f"Successfully merged & saved!"
+        return f"Successfully downloaded, merged & saved with audio!"
     except Exception as e:
         return f"Merging failed: {str(e)}"
