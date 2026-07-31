@@ -1,40 +1,45 @@
 import yt_dlp
+from curl_cffi import requests
 
 def get_stream_options(url):
-    ydl_opts = {'skip_download': True}
+    # Configure yt-dlp to impersonate a real browser TLS fingerprint via curl_cffi
+    ydl_opts = {
+        'extractor_args': {'generic': {'impersonate': 'chrome'}},
+        'socket_timeout': 30,
+        'quiet': True,
+    }
+    
+    options = []
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
-            formats = info.get('formats', [])
-            
-            options = []
-            seen_res = set()
+            formats = info.get('formats', [info])
             
             for f in formats:
-                vcodec = f.get('vcodec', 'none')
-                if vcodec != 'none':
-                    height = f.get('height')
-                    format_id = f.get('format_id')
-                    filesize = f.get('filesize') or f.get('filesize_approx')
-                    
-                    size_str = "Size: Unknown"
-                    if filesize:
-                        size_mb = filesize / (1024 * 1024)
-                        size_str = f"~{size_mb:.1f} MB"
-                    
-                    resolution = f"{height}p" if height else f.get('resolution', 'Standard')
-                    
-                    if height and height >= 360 and resolution not in seen_res:
-                        seen_res.add(resolution)
-                        options.append(f"{resolution} | {size_str} | ID:{format_id}")
-            
-            if not options:
-                options.append("Best Quality | Size: Unknown | ID:best")
+                format_id = f.get('format_id', 'best')
+                ext = f.get('ext', 'mp4')
+                resolution = f.get('resolution', f.get('format_note', 'HD'))
+                filesize = f.get('filesize', f.get('filesize_approx', 0))
+                size_mb = round(filesize / (1024 * 1024), 2) if filesize else "Unknown"
                 
-            return options
+                desc = f"Res: {resolution} | Ext: {ext} | Size: {size_mb}MB | ID:{format_id}"
+                options.append(desc)
+                
+        if not options:
+            options.append("Best Quality Available | ID:best")
     except Exception as e:
-        return [f"Error: {str(e)}"]
+        options.append(f"Error parsing stream: {str(e)} | ID:best")
+        
+    return options
 
 def download_selected_stream(url, format_id):
-    # Background download worker execution hook
-    return "Stream downloaded and decrypted successfully."
+    ydl_opts = {
+        'format': format_id,
+        'extractor_args': {'generic': {'impersonate': 'chrome'}},
+    }
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        return "Download completed successfully!"
+    except Exception as e:
+        return f"Download failed: {str(e)}"
