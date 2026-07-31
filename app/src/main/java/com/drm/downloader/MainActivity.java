@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
+import java.io.File;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
@@ -118,13 +119,15 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        String filesDir = getFilesDir().getAbsolutePath();
+
         new Thread(() -> {
             try {
                 Python py = Python.getInstance();
                 PyObject module = py.getModule("drm_manager");
                 
                 ProgressCallback callback = new ProgressCallback();
-                PyObject result = module.callAttr("download_selected_stream", url, formatId, callback);
+                PyObject result = module.callAttr("download_selected_stream", url, formatId, filesDir, callback);
                 String msg = result != null ? result.toString() : "Download completed.";
 
                 runOnUiThread(() -> {
