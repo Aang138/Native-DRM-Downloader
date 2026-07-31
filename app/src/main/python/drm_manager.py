@@ -28,6 +28,8 @@ def get_stream_options(url):
     },
     "format": "best"
 },
+    "format": "best"
+},
         'socket_timeout': 30,
         'quiet': True,
     }
@@ -90,6 +92,8 @@ def download_selected_stream(url, format_id, manual_key, callback=None):
         "Referer": "https://www.crunchyroll.com/",
         "Origin": "https://www.crunchyroll.com"
     },
+    "format": "best"
+},
     "format": "best"
 },
     }
